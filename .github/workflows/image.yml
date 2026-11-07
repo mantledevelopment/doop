@@ -1,0 +1,36 @@
+# Mantle: build the arm64 image for our self-hosted Doop and push it to ECR `doop`.
+# Deployed by ArgoCD from mantledevelopment/deploy.doop.mantledev.co.uk (bump the
+# tag in deploy/deployment.yml there). Uses the same org-level AWS role variables
+# as api.mantle-portal.
+name: Image
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Image tag, e.g. v0.1.0
+        required: true
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.ecr.outputs.registry }}/doop:${{ inputs.tag || github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
