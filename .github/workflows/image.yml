@@ -8,9 +8,12 @@ on:
     tags: ['v*']
   workflow_dispatch:
     inputs:
-      tag:
-        description: Image tag, e.g. v0.1.0
+      ref:
+        description: Git ref to build, usually an upstream release tag (e.g. v0.13.0)
         required: true
+      tag:
+        description: Image tag (defaults to the ref)
+        required: false
 permissions:
   contents: read
   id-token: write
@@ -19,6 +22,8 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
@@ -31,6 +36,6 @@ jobs:
           context: .
           platforms: linux/arm64
           push: true
-          tags: ${{ steps.ecr.outputs.registry }}/doop:${{ inputs.tag || github.ref_name }}
+          tags: ${{ steps.ecr.outputs.registry }}/doop:${{ inputs.tag || inputs.ref || github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
